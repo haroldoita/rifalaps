@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rifa Online</title>
+    <link rel="stylesheet" href="style.css?v=20261005-7">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <section id="loginScreen" class="login-screen" hidden>
+        <form id="loginForm" class="login-panel">
+            <h1>Acessar rifa</h1>
+            <p>Entre com sua conta de vendedor ou administrador.</p>
+            <div class="form-group">
+                <label for="loginUsuario">Usuário ou código do vendedor</label>
+                <input type="text" id="loginUsuario" autocomplete="username" required>
+            </div>
+            <div class="form-group">
+                <label for="loginSenha">Senha</label>
+                <input type="password" id="loginSenha" autocomplete="current-password" required>
+            </div>
+            <button type="submit" id="btnLogin" class="btn-primary">Entrar</button>
+        </form>
+    </section>
+
+    <header class="header authenticated-content" hidden>
+        <div class="container">
+            <h1 id="rifaNameHeading">🎟️ Rifa Solidária</h1>
+            <p class="subtitle" id="rifaSubtitle"></p>
+            <div class="session-bar">
+                <span id="sessionLabel"></span>
+                <button type="button" id="btnLogout" class="btn-logout">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container authenticated-content" hidden>
+        <!-- Filtros -->
+        <section class="filters">
+            <div class="filter-group admin-only">
+                <label for="vendedorSelect">Filtrar por vendedor:</label>
+                <select id="vendedorSelect">
+                    <option value="">Todos os vendedores</option>
+                </select>
+            </div>
+            <div class="filter-group admin-only">
+                <label>Status:</label>
+                <div class="status-legend">
+                    <span class="legend-item"><span class="dot disponivel"></span> Disponível</span>
+                    <span class="legend-item"><span class="dot reservado"></span> Reservado</span>
+                    <span class="legend-item"><span class="dot vendido"></span> Vendido</span>
+                    <span class="legend-item"><span class="dot impresso"></span> Impresso (offline)</span>
+                </div>
+            </div>
+            <div class="filter-group print-actions admin-only">
+                <button type="button" id="btnImprimirBilhetes" class="btn-print">Imprimir bilhetes</button>
+            </div>
+        </section>
+
+        <section id="ticketPrintArea" class="ticket-print-area admin-only" aria-live="polite"></section>
+
+        <!-- Estatísticas -->
+        <section class="stats admin-only">
+            <div class="stat-card">
+                <span class="stat-number" id="totalBilhetes">760</span>
+                <span class="stat-label">Total</span>
+            </div>
+            <div class="stat-card disponivel">
+                <span class="stat-number" id="totalDisponiveis">760</span>
+                <span class="stat-label">Disponíveis</span>
+            </div>
+            <div class="stat-card reservado">
+                <span class="stat-number" id="totalReservados">0</span>
+                <span class="stat-label">Reservados</span>
+            </div>
+            <div class="stat-card vendido">
+                <span class="stat-number" id="totalVendidos">0</span>
+                <span class="stat-label">Vendidos</span>
+            </div>
+        </section>
+
+        <section class="draw-actions admin-only" aria-labelledby="drawActionsTitle">
+            <div>
+                <h2 id="drawActionsTitle">Sorteio e renovação</h2>
+                <div id="drawResultPanel" class="draw-result-panel" hidden aria-live="polite">
+                    <span id="drawResultHeading" class="draw-result-heading">Último sorteio</span>
+                    <strong id="drawNumber" class="draw-number">---</strong>
+                    <p id="drawWinner" class="draw-winner"></p>
+                    <p id="drawWinnerPhone" class="draw-winner-phone"></p>
+                    <ol id="drawWinnerList" class="draw-winner-list"></ol>
+                </div>
+                <p id="lastDrawSummary">Nenhum sorteio registrado.</p>
+            </div>
+            <div class="draw-actions-buttons">
+                <button type="button" id="btnAbrirConfiguracao" class="btn-secondary">Configurar rifa</button>
+                <button type="button" id="btnAbrirSorteio" class="btn-primary">Sortear número aleatório</button>
+            </div>
+        </section>
+
+        <section class="buyer-report" aria-labelledby="buyerReportTitle">
+            <div class="buyer-report-header">
+                <div>
+                    <h2 id="buyerReportTitle">Relatório de compradores</h2>
+                    <p id="buyerReportCount" aria-live="polite">Nenhuma venda registrada</p>
+                </div>
+                <div class="buyer-report-filters">
+                    <label class="visually-hidden" for="buyerReportSearch">Buscar comprador ou bilhete</label>
+                    <input type="search" id="buyerReportSearch" placeholder="Nome, telefone ou número">
+                    <label class="visually-hidden" for="buyerReportStatus">Filtrar por situação</label>
+                    <select id="buyerReportStatus">
+                        <option value="todos">Todas as situações</option>
+                        <option value="reservado">Reservados</option>
+                        <option value="pago">Pagos</option>
+                    </select>
+                </div>
+            </div>
+            <div class="buyer-report-table-wrap">
+                <table class="buyer-report-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Bilhete</th>
+                            <th scope="col">Comprador</th>
+                            <th scope="col">Telefone</th>
+                            <th scope="col" class="admin-only">Vendedor</th>
+                            <th scope="col">Situação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="buyerReportRows"></tbody>
+                </table>
+                <p id="buyerReportEmpty" class="buyer-report-empty" hidden>Nenhum comprador corresponde aos filtros.</p>
+            </div>
+        </section>
+
+        <!-- Grid de Vendedores -->
+        <section id="vendedoresContainer" class="vendedores-container">
+            <!-- Preenchido via JavaScript -->
+        </section>
+    </main>
+
+    <!-- Modal de Sorteio e Renovação -->
+    <div id="modalSorteio" class="modal">
+        <div class="modal-content">
+            <button type="button" class="close" aria-label="Fechar">&times;</button>
+            <h2 id="drawModalTitle">Sortear número aleatório</h2>
+            <p id="drawModalWarning" class="draw-warning">Será sorteado um dos bilhetes pagos. O resultado será exibido antes de qualquer limpeza; os bilhetes continuam como estão até você confirmar a renovação em uma segunda etapa.</p>
+            <label class="draw-confirmation">
+                <input type="checkbox" id="confirmarRenovacao" required>
+                <span id="drawConfirmationText">Confirmo que desejo sortear um bilhete aleatório.</span>
+            </label>
+            <button type="button" id="btnExecutarSorteio" class="btn-primary">Sortear número aleatório</button>
+        </div>
+    </div>
+
+    <!-- Modal de Configuração da Rifa -->
+    <div id="modalConfiguracao" class="modal">
+        <div class="modal-content configuration-modal">
+            <button type="button" class="close" aria-label="Fechar">&times;</button>
+            <h2>Configurar rifa</h2>
+            <form id="formConfiguracao">
+                <div class="form-group">
+                    <label for="configNomeRifa">Nome da rifa *</label>
+                    <input type="text" id="configNomeRifa" maxlength="120" required>
+                </div>
+                <div class="form-group">
+                    <label for="configPremio">Prêmio *</label>
+                    <input type="text" id="configPremio" maxlength="200" placeholder="Ex.: televisão 55 polegadas" required>
+                </div>
+                <div class="form-group">
+                    <label for="configChavePix">Chave Pix única *</label>
+                    <input type="text" id="configChavePix" maxlength="255" autocomplete="off" placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória" required>
+                </div>
+                <div class="configuration-prizes">
+                    <div class="form-group">
+                        <label for="configValorBilhete">Preço por bilhete (R$) *</label>
+                        <input type="number" id="configValorBilhete" min="0.01" max="1000000" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="configQuantidadePremios">Quantidade de prêmios *</label>
+                        <input type="number" id="configQuantidadePremios" min="1" max="1000" step="1" required>
+                    </div>
+                </div>
+                <div class="configuration-numbers">
+                    <div class="form-group">
+                        <label for="configQuantidadeVendedores">Quantidade de vendedores *</label>
+                        <input type="number" id="configQuantidadeVendedores" min="1" max="100" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="configBilhetesImpressos">Bilhetes impressos por vendedor *</label>
+                        <input type="number" id="configBilhetesImpressos" min="0" max="1000" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="configBilhetesOnline">Bilhetes online por vendedor *</label>
+                        <input type="number" id="configBilhetesOnline" min="0" max="1000" required>
+                    </div>
+                </div>
+                <fieldset class="seller-names-fieldset">
+                    <legend>Nomes dos vendedores</legend>
+                    <p class="seller-password-help">Cadastre uma senha inicial para cada vendedor. Para contas existentes, deixe em branco para manter a senha atual.</p>
+                    <div id="configNomesVendedores" class="seller-names-grid"></div>
+                </fieldset>
+                <p class="configuration-notice">Se mudar as quantidades, os bilhetes serão recriados. Essa mudança só é permitida quando não houver bilhetes pagos ou reservados.</p>
+                <button type="submit" id="btnSalvarConfiguracao" class="btn-primary">Salvar configurações</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Compra -->
+    <div id="modalCompra" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modalVendaTitulo">Reservar Bilhete</h2>
+            <div class="bilhete-info">
+                <p><strong>Vendedor:</strong> <span id="modalVendedor"></span></p>
+                <p><strong>Bilhete:</strong> <span id="modalBilhete"></span></p>
+                <p><strong>Valor:</strong> R$ <span id="modalValor">10,00</span></p>
+            </div>
+            <form id="formCompra">
+                <input type="hidden" id="bilheteId">
+                <div class="form-group">
+                    <label for="nome">Nome completo *</label>
+                    <input type="text" id="nome" required maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label for="telefone">Telefone/WhatsApp *</label>
+                    <input type="tel" id="telefone" required placeholder="(11) 99999-9999" maxlength="15">
+                </div>
+                <div class="form-group">
+                    <label for="email">E-mail (opcional)</label>
+                    <input type="email" id="email" maxlength="100">
+                </div>
+                <button type="submit" id="btnRegistrarVenda" class="btn-primary">Reservar e Pagar via Pix</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Pagamento Pix -->
+    <div id="modalPix" class="modal">
+        <div class="modal-content pix-modal">
+            <span class="close">&times;</span>
+            <h2>💰 Pagamento via Pix</h2>
+            <div class="pix-info">
+                <p>Escaneie o QR Code ou copie o código Pix abaixo:</p>
+                <div id="qrcodeImg" class="qrcode-container" role="img" aria-label="QR Code Pix"></div>
+                <p class="pix-copy-label">Pix copia e cola</p>
+                <div class="pix-key-container">
+                    <input type="text" id="pixKey" readonly aria-label="Código Pix copia e cola">
+                    <button type="button" onclick="copiarPix()" class="btn-copy">Copiar</button>
+                </div>
+                <p>Chave do vendedor: <strong id="pixRecipient"></strong></p>
+                <p class="pix-value">Valor: <strong id="pixAmount">R$ 10,00</strong></p>
+                <p class="pix-instructions">
+                    Após o pagamento, envie o comprovante para o vendedor.
+                    O bilhete ficará como pago após a confirmação manual.
+                </p>
+                <button type="button" id="btnConfirmarPagamento" class="btn-primary btn-confirm-payment">
+                    Confirmar recebimento do Pix
+                </button>
+                <div class="timer">
+                    <span>Expira em: </span>
+                    <span id="timer">15:00</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação -->
+    <div id="modalConfirmacao" class="modal">
+        <div class="modal-content confirmation-modal">
+            <span class="close">&times;</span>
+            <div class="success-icon">✅</div>
+            <h2>Reserva Realizada!</h2>
+            <p>Seu bilhete foi reservado com sucesso.</p>
+            <div class="reserva-info">
+                <p><strong>Vendedor:</strong> <span id="confVendedor"></span></p>
+                <p><strong>Bilhete:</strong> <span id="confBilhete"></span></p>
+                <p><strong>Nome:</strong> <span id="confNome"></span></p>
+            </div>
+            <p class="aviso">⚠️ O bilhete será confirmado após a verificação do pagamento.</p>
+            <button onclick="fecharModal('modalConfirmacao')" class="btn-primary">Entendi</button>
+        </div>
+    </div>
+
+    <!-- Toast de notificação -->
+    <div id="toast" class="toast"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="script.js?v=20261006-1"></script>
+</body>
+</html>
