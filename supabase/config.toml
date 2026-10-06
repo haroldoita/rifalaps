@@ -1,4 +1,4 @@
 project_id = "rifa"
 
 [functions.rifa-api]
-verify_jwt = true
+verify_jwt = false
