@@ -156,16 +156,12 @@ begin
     set nome_comprador = p_nome,
         telefone_comprador = p_telefone,
         data_venda = now(),
-        status = case when p_perfil = 'vendedor' then 'pago' else 'disponivel' end
+        status = 'disponivel'
     where id = p_bilhete_id;
 
-    if p_perfil = 'admin' then
-        insert into public.rifa_reservas (bilhete_id, nome_comprador, telefone_comprador)
-        values (p_bilhete_id, p_nome, p_telefone);
-        return 'Bilhete reservado.';
-    end if;
-
-    return 'Venda registrada e bilhete marcado como pago.';
+    insert into public.rifa_reservas (bilhete_id, nome_comprador, telefone_comprador)
+    values (p_bilhete_id, p_nome, p_telefone);
+    return 'Bilhete reservado.';
 end;
 $$;
 
