@@ -1,5 +1,5 @@
 window.RIFA_SUPABASE_CONFIG = {
-    url: 'https://SEU-PROJETO.supabase.co',
-    anonKey: 'SUA_CHAVE_PUBLICA_SUPABASE',
+    url: 'https://github.com/haroldoita/rifalaps.git',
+    anonKey: 'Laps2026!',
     authEmailDomain: 'login.seu-dominio.com'
 };
