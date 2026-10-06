@@ -1,4 +1,4 @@
-﻿// ==================== CONFIGURAÇÕES ====================
+// ==================== CONFIGURAÇÕES ====================
 const CONFIG = {
     TOTAL_VENDEDORES: 19,
     BILHETES_POR_VENDEDOR: 40,
@@ -513,12 +513,8 @@ function abrirModalCompra(bilhete, vendedor) {
     document.getElementById('modalBilhete').textContent = bilhete.numero;
     document.getElementById('modalValor').textContent = CONFIG.VALOR_BILHETE.toFixed(2).replace('.', ',');
     document.getElementById('bilheteId').value = bilhete.id;
-    document.getElementById('modalVendaTitulo').textContent = usuarioAtual.perfil === 'vendedor'
-        ? 'Registrar venda'
-        : 'Reservar Bilhete';
-    document.getElementById('btnRegistrarVenda').textContent = usuarioAtual.perfil === 'vendedor'
-        ? 'Registrar venda'
-        : 'Reservar e Pagar via Pix';
+    document.getElementById('modalVendaTitulo').textContent = 'Reservar bilhete';
+    document.getElementById('btnRegistrarVenda').textContent = 'Reservar e Pagar via Pix';
 
     modalCompra.classList.add('active');
 }
@@ -764,20 +760,13 @@ function configurarEventos() {
                 return;
             }
 
-            const vendaDireta = usuarioAtual.perfil === 'vendedor';
-            bilhete.status = vendaDireta ? 'pago' : 'reservado';
+            bilhete.status = 'reservado';
             bilhete.nome_comprador = nome;
             bilhete.telefone_comprador = telefone;
             renderizarTudo();
 
             const modalCompra = document.getElementById('modalCompra');
             if (modalCompra) modalCompra.classList.remove('active');
-            if (vendaDireta) {
-                mostrarToast('Venda registrada e bilhete marcado como pago.');
-                formCompra.reset();
-                return;
-            }
-
             abrirModalPagamento(bilhete, vendedor);
             mostrarToast('Pagamento via Pix solicitado.');
         });
