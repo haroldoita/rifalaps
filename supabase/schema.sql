@@ -269,7 +269,8 @@ begin
        or nome_comprador is not null
        or telefone_comprador is not null
        or data_venda is not null;
-    delete from public.rifa_reservas;
+    delete from public.rifa_reservas
+    where bilhete_id in (select id from public.rifa_bilhetes);
     update public.rifa_sorteios set renovado = true where not renovado;
 end;
 $$;
