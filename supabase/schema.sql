@@ -264,7 +264,11 @@ begin
         raise exception 'Faça o sorteio antes de limpar e renovar os bilhetes.' using errcode = 'P0001';
     end if;
     update public.rifa_bilhetes
-    set status = 'disponivel', nome_comprador = null, telefone_comprador = null, data_venda = null;
+    set status = 'disponivel', nome_comprador = null, telefone_comprador = null, data_venda = null
+    where status <> 'disponivel'
+       or nome_comprador is not null
+       or telefone_comprador is not null
+       or data_venda is not null;
     delete from public.rifa_reservas;
     update public.rifa_sorteios set renovado = true where not renovado;
 end;
