@@ -829,10 +829,10 @@ async function enviarApi(action, dados, headersExtras = {}) {
 }
 
 function gerarCodigoPix(chavePix, valor, identificador) {
-    const campo = (id, conteudo) => `${id}${String(conteudo.length).padStart(2, '0')}${conteudo}`;
-    const nomeRecebedor = CONFIG.NOME_RIFA.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().slice(0, 25);
-    const cidade = CONFIG.PIX_CITY.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().slice(0, 15);
-    const contaPix = campo('00', 'BR.GOV.BCB.PIX') + campo('01', chavePix);
+    const campo = (id, conteudo) => `${id}${String(new TextEncoder().encode(String(conteudo)).length).padStart(2, '0')}${conteudo}`;
+    const nomeRecebedor = CONFIG.NOME_RIFA.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '').toUpperCase().slice(0, 25);
+    const cidade = CONFIG.PIX_CITY.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '').toUpperCase().slice(0, 15);
+    const contaPix = campo('00', 'BR.GOV.BCB.PIX') + campo('01', String(chavePix).trim());
     const dadosAdicionais = campo('05', String(identificador).slice(0, 25));
     const valorFormatado = Number(valor).toFixed(2);
 
@@ -854,8 +854,8 @@ function gerarCodigoPix(chavePix, valor, identificador) {
 function calcularCrc16(texto) {
     let crc = 0xFFFF;
 
-    for (let indice = 0; indice < texto.length; indice += 1) {
-        crc ^= texto.charCodeAt(indice) << 8;
+    for (const byte of new TextEncoder().encode(texto)) {
+        crc ^= byte << 8;
         for (let bit = 0; bit < 8; bit += 1) {
             crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
             crc &= 0xFFFF;
