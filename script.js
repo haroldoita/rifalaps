@@ -837,7 +837,7 @@ function gerarCodigoPix(chavePix, valor, identificador) {
     const valorFormatado = Number(valor).toFixed(2);
 
     let payload = '000201';
-    payload += campo('01', '12');
+    payload += campo('01', '11');
     payload += campo('26', contaPix);
     payload += campo('52', '0000');
     payload += campo('53', '986');
