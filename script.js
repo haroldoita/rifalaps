@@ -522,7 +522,7 @@ function abrirModalCompra(bilhete, vendedor) {
 function abrirModalPagamento(bilhete, vendedor) {
     bilhetePagamentoAtual = bilhete.id;
 
-    const chavePix = configuracaoRifa.chave_pix;
+    const chavePix = normalizarChavePix(configuracaoRifa.chave_pix);
     const codigoPix = gerarCodigoPix(chavePix, CONFIG.VALOR_BILHETE, `RIFA${bilhete.numero}`);
     const areaQrCode = document.getElementById('qrcodeImg');
     const campoPix = document.getElementById('pixKey');
@@ -851,7 +851,7 @@ function gerarCodigoPix(chavePix, valor, identificador) {
     return payload + calcularCrc16(payload);
 }
 
-function calcularCrc16(texto) {
+function normalizarChavePix(chavePix) {     const chave = String(chavePix).trim();     if (/^\d{10,11}$/.test(chave)) return `+55${chave}`;     if (/^55\d{10,11}$/.test(chave)) return `+${chave}`;     return chave; }  function calcularCrc16(texto) {
     let crc = 0xFFFF;
 
     for (const byte of new TextEncoder().encode(texto)) {
