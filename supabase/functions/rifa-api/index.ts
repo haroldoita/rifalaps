@@ -42,6 +42,10 @@ function raise(message: string, status = 400): never {
   throw Object.assign(new Error(message), { status });
 }
 
+function reservationCutoff() {
+  return new Date(Date.now() - 15 * 60 * 1000).toISOString();
+}
+
 function loginEmail(login: string) {
   const domain = authEmailDomain?.trim().toLowerCase().replace(/^@/, '');
   if (!domain || !/^[a-z0-9.-]+$/.test(domain)) {
@@ -93,6 +97,95 @@ async function ensureTickets() {
   if (error) raise(error.message, 500);
 }
 
+async function expireReservation(ticketId: number) {
+  const cutoff = reservationCutoff();
+  const { data, error } = await service.from('rifa_reservas')
+    .select('criado_em').eq('bilhete_id', ticketId).maybeSingle();
+  if (error) raise('Não foi possível verificar a reserva do bilhete.', 500);
+  if (data && Date.parse(data.criado_em) <= Date.parse(cutoff)) {
+    const { error: deleteError } = await service.from('rifa_reservas')
+      .delete().eq('bilhete_id', ticketId).lte('criado_em', cutoff);
+    if (deleteError) raise('Não foi possível liberar a reserva expirada.', 500);
+  }
+}
+
+async function getPublicSellerData(reference: unknown) {
+  const code = String(reference || '').trim().toLowerCase();
+  if (!/^v\d{1,4}$/.test(code)) raise('Link de vendedor inválido.', 404);
+
+  await ensureTickets();
+  const [sellerResult, config] = await Promise.all([
+    service.from('rifa_vendedores').select('id, nome, codigo_ref')
+      .eq('codigo_ref', code).eq('ativo', true).maybeSingle(),
+    configuration(),
+  ]);
+  if (sellerResult.error) raise('Não foi possível localizar o vendedor.', 500);
+  const seller = sellerResult.data;
+  if (!seller) raise('Este link de vendedor não está ativo.', 404);
+
+  const { data: tickets, error: ticketsError } = await service.from('rifa_bilhetes')
+    .select('id, numero, tipo, status').eq('vendedor_id', seller.id).order('numero');
+  if (ticketsError) raise('Não foi possível carregar os bilhetes.', 500);
+
+  const ticketIds = (tickets || []).map((ticket) => ticket.id);
+  let reservations: { bilhete_id: number; criado_em: string }[] = [];
+  if (ticketIds.length) {
+    const { data, error } = await service.from('rifa_reservas')
+      .select('bilhete_id, criado_em').in('bilhete_id', ticketIds).gt('criado_em', reservationCutoff());
+    if (error) raise('Não foi possível verificar os bilhetes reservados.', 500);
+    reservations = data || [];
+  }
+  const reservedIds = new Set(reservations.map((reservation) => reservation.bilhete_id));
+
+  return {
+    success: true,
+    vendedor: seller,
+    configuracao: {
+      nome_rifa: config.nome_rifa,
+      premio: config.premio,
+      chave_pix: config.chave_pix,
+      valor_bilhete: config.valor_bilhete,
+    },
+    bilhetes: (tickets || []).map((ticket) => ({
+      ...ticket,
+      vendedor_id: seller.id,
+      status: ticket.status === 'pago' ? 'pago' : reservedIds.has(ticket.id) ? 'reservado' : 'disponivel',
+    })),
+  };
+}
+
+async function reservePublicTicket(body: Record<string, unknown>) {
+  const ticketId = Number(body.bilhete_id);
+  const buyerName = String(body.nome || '').trim();
+  const phone = String(body.telefone || '').trim();
+  const code = String(body.codigo_ref || '').trim().toLowerCase();
+  if (!Number.isInteger(ticketId) || ticketId <= 0 || !buyerName || buyerName.length > 100
+    || !phone || phone.length > 20 || !/^v\d{1,4}$/.test(code)) {
+    raise('Informe bilhete, vendedor, nome e telefone válidos.', 422);
+  }
+
+  const { data: seller, error: sellerError } = await service.from('rifa_vendedores')
+    .select('id').eq('codigo_ref', code).eq('ativo', true).maybeSingle();
+  if (sellerError) raise('Não foi possível verificar o vendedor.', 500);
+  if (!seller) raise('Este link de vendedor não está ativo.', 404);
+
+  const { data: ticket, error: ticketError } = await service.from('rifa_bilhetes')
+    .select('id').eq('id', ticketId).eq('vendedor_id', seller.id).eq('status', 'disponivel').maybeSingle();
+  if (ticketError) raise('Não foi possível verificar o bilhete.', 500);
+  if (!ticket) raise('Este bilhete não está disponível.', 409);
+
+  await expireReservation(ticketId);
+  const { data, error } = await service.rpc('rifa_reservar_bilhete', {
+    p_bilhete_id: ticketId,
+    p_nome: buyerName,
+    p_telefone: phone,
+    p_perfil: 'vendedor',
+    p_vendedor_id: seller.id,
+  });
+  if (error) raise(error.message, error.code === 'P0001' ? 409 : 500);
+  return { success: true, message: data };
+}
+
 async function getData(profile: Profile) {
   await ensureTickets();
   const config = await configuration();
@@ -111,7 +204,8 @@ async function getData(profile: Profile) {
   const [sellerResult, ticketResult, reservationResult] = await Promise.all([
     sellersQuery,
     ticketsQuery,
-    service.from('rifa_reservas').select('bilhete_id, nome_comprador, telefone_comprador'),
+    service.from('rifa_reservas').select('bilhete_id, nome_comprador, telefone_comprador')
+      .gt('criado_em', reservationCutoff()),
   ]);
   if (sellerResult.error || ticketResult.error || reservationResult.error) {
     raise('Não foi possível carregar os dados da rifa.', 500);
@@ -222,16 +316,14 @@ async function saveConfiguration(profile: Profile, body: Record<string, unknown>
   const resetTickets = sellerCount !== current.quantidade_vendedores
     || printed !== current.bilhetes_impressos || online !== current.bilhetes_online;
   if (resetTickets) {
-    const [paid, reserved, drawHistory] = await Promise.all([
+    const [paid, reserved] = await Promise.all([
       service.from('rifa_bilhetes').select('id', { count: 'exact', head: true }).eq('status', 'pago'),
       service.from('rifa_reservas').select('bilhete_id', { count: 'exact', head: true }),
-      service.from('rifa_sorteios').select('id', { count: 'exact', head: true }),
     ]);
-    if (paid.error || reserved.error || drawHistory.error) raise('Falha ao verificar bilhetes em uso.', 500);
+    if (paid.error || reserved.error) raise('Falha ao verificar bilhetes em uso.', 500);
     if ((paid.count || 0) + (reserved.count || 0) > 0) {
       raise('Não é possível mudar quantidades enquanto houver bilhetes pagos ou reservados.', 409);
     }
-    if (drawHistory.count) raise('Não é possível recriar bilhetes depois de haver sorteios no histórico.', 409);
   }
 
   const { data: allSellers, error: sellersError } = await service.from('rifa_vendedores')
@@ -305,15 +397,19 @@ async function handle(request: Request) {
   if (request.method !== 'POST') return json({ success: false, message: 'Método inválido.' }, 405);
 
   try {
-    const profile = await requireProfile(request);
     const action = new URL(request.url).searchParams.get('action');
     const body = await request.json().catch(() => ({}));
 
+    if (action === 'public-dados') return json(await getPublicSellerData(body.codigo_ref));
+    if (action === 'public-reservar') return json(await reservePublicTicket(body));
+
+    const profile = await requireProfile(request);
     if (action === 'sessao') {
       return json({ success: true, usuario: {
         perfil: profile.perfil,
         nome: profile.perfil === 'admin' ? 'Administrador' : profile.login,
         vendedor_id: profile.vendedor_id,
+        codigo_ref: profile.perfil === 'vendedor' ? profile.login : null,
       } });
     }
     if (action === 'dados') return json(await getData(profile));
@@ -326,6 +422,7 @@ async function handle(request: Request) {
       if (!Number.isInteger(ticketId) || ticketId <= 0 || !buyerName || buyerName.length > 100 || !phone || phone.length > 20) {
         raise('Informe bilhete, nome e telefone válidos.', 422);
       }
+      await expireReservation(ticketId);
       const { data, error } = await service.rpc('rifa_reservar_bilhete', {
         p_bilhete_id: ticketId,
         p_nome: buyerName,
