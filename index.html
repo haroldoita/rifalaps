@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rifa Online</title>
-    <link rel="stylesheet" href="style.css?v=20261005-7">
+    <link rel="stylesheet" href="style.css?v=20261014-2">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -32,8 +32,25 @@
                 <span id="sessionLabel"></span>
                 <button type="button" id="btnLogout" class="btn-logout">Sair</button>
             </div>
+            <div id="sellerShare" class="seller-share seller-only" hidden>
+                <label for="sellerPublicLink">Link para seus compradores</label>
+                <div class="seller-share-controls">
+                    <input type="url" id="sellerPublicLink" readonly>
+                    <button type="button" id="btnCopySellerLink" class="btn-secondary">Copiar link</button>
+                </div>
+            </div>
         </div>
     </header>
+
+    <main id="publicStore" class="container public-store" hidden>
+        <section class="public-store-intro">
+            <h2 id="publicSellerHeading"></h2>
+            <p id="publicRaffleDetails"></p>
+            <p>Escolha um bilhete disponível para reservar e pagar via Pix.</p>
+        </section>
+        <section id="publicTicketsContainer" class="public-tickets" aria-label="Bilhetes disponíveis"></section>
+        <p class="public-payment-notice">Após o pagamento, envie o comprovante ao vendedor. A confirmação do bilhete é manual.</p>
+    </main>
 
     <main class="container authenticated-content" hidden>
         <!-- Filtros -->
@@ -168,7 +185,7 @@
                 </div>
                 <div class="form-group">
                     <label for="configChavePix">Chave Pix única *</label>
-                    <input type="text" id="configChavePix" maxlength="255" autocomplete="off" placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória" required>
+                    <input type="text" id="configChavePix" maxlength="255" autocomplete="off" placeholder="CPF, CNPJ, e-mail, telefone com DDD ou chave aleatória" required>
                 </div>
                 <div class="configuration-prizes">
                     <div class="form-group">
@@ -287,6 +304,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
-    <script src="script.js?v=20261006-2"></script>
+    <script src="script.js?v=20261014-2"></script>
 </body>
 </html>

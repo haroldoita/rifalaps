@@ -80,6 +80,91 @@ body {
     font-size: 0.85rem;
 }
 
+.seller-share {
+    max-width: 620px;
+    margin: 14px auto 0;
+    text-align: left;
+}
+
+.seller-share label {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--gray-800);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.seller-share-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.seller-share-controls input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px solid var(--gray-300);
+    border-radius: 6px;
+    font: inherit;
+}
+
+.public-store {
+    padding-bottom: 32px;
+}
+
+.public-store-intro,
+.public-payment-notice {
+    margin: 0 auto 20px;
+    padding: 20px;
+    border-radius: var(--radius);
+    background: #ffffff;
+    box-shadow: var(--shadow);
+    text-align: center;
+}
+
+.public-store-intro h2 {
+    margin-bottom: 6px;
+    color: var(--gray-900);
+}
+
+.public-store-intro p + p {
+    margin-top: 8px;
+}
+
+.public-tickets {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+    gap: 9px;
+    margin-bottom: 20px;
+}
+
+.public-ticket {
+    min-height: 48px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--success);
+    color: #ffffff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.public-ticket:disabled {
+    background: var(--gray-300);
+    color: var(--gray-600);
+    cursor: not-allowed;
+}
+
+.public-payment-notice {
+    color: var(--gray-600);
+}
+
+@media (max-width: 560px) {
+    .seller-share-controls {
+        flex-direction: column;
+    }
+}
+
 .btn-logout {
     padding: 6px 10px;
     border: 1px solid var(--gray-300);

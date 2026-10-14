@@ -1,4 +1,4 @@
-// ==================== CONFIGURAÇÕES ====================
+﻿// ==================== CONFIGURAÇÕES ====================
 const CONFIG = {
     TOTAL_VENDEDORES: 19,
     BILHETES_POR_VENDEDOR: 40,
@@ -26,6 +26,8 @@ let filtroVendedor = '';
 let bilhetePagamentoAtual = null;
 let ultimoSorteio = null;
 let usuarioAtual = null;
+let modoPublico = false;
+let vendedorLojaPublica = null;
 let configuracaoRifa = {
     nome_rifa: 'Rifa Solidária',
     premio: '',
@@ -40,8 +42,49 @@ let configuracaoRifa = {
 // ==================== INICIALIZAÇÃO ====================
 document.addEventListener('DOMContentLoaded', async () => {
     configurarEventos();
-    await verificarSessao();
+    const codigoVendedor = new URLSearchParams(window.location.search).get('v');
+    if (codigoVendedor) {
+        await iniciarLojaPublica(codigoVendedor);
+    } else {
+        await verificarSessao();
+    }
 });
+
+async function iniciarLojaPublica(codigoVendedor) {
+    modoPublico = true;
+    document.getElementById('loginScreen').hidden = true;
+    document.querySelector('.header').hidden = false;
+    document.getElementById('sessionLabel').hidden = true;
+    document.getElementById('btnLogout').hidden = true;
+    document.getElementById('publicStore').hidden = false;
+
+    try {
+        const resultado = await enviarApiPublica('public-dados', { codigo_ref: codigoVendedor });
+        configuracaoRifa = resultado.configuracao;
+        CONFIG.VALOR_BILHETE = Number(configuracaoRifa.valor_bilhete);
+        CONFIG.NOME_RIFA = configuracaoRifa.nome_rifa;
+        vendedorLojaPublica = resultado.vendedor;
+        vendedores = [vendedorLojaPublica];
+        bilhetes = agruparBilhetes(resultado.bilhetes);
+
+        document.getElementById('rifaNameHeading').textContent = `🎟️ ${configuracaoRifa.nome_rifa}`;
+        document.getElementById('rifaSubtitle').textContent = configuracaoRifa.premio
+            ? `Prêmio: ${configuracaoRifa.premio}`
+            : 'Escolha seu bilhete';
+        document.title = `${configuracaoRifa.nome_rifa} - Compra de bilhetes`;
+        document.getElementById('publicSellerHeading').textContent = `Compre com ${vendedorLojaPublica.nome}`;
+        const premio = configuracaoRifa.premio ? `Prêmio: ${configuracaoRifa.premio} • ` : '';
+        document.getElementById('publicRaffleDetails').textContent =
+            `${premio}Valor por bilhete: R$ ${CONFIG.VALOR_BILHETE.toFixed(2).replace('.', ',')}`;
+        renderizarLojaPublica();
+    } catch (error) {
+        document.getElementById('publicSellerHeading').textContent = 'Link de vendedor indisponível';
+        document.getElementById('publicRaffleDetails').textContent = error.message || 'Não foi possível carregar esta rifa.';
+        document.getElementById('publicTicketsContainer').replaceChildren();
+        document.querySelector('.public-store-intro > p:last-child').hidden = true;
+        document.querySelector('.public-payment-notice').hidden = true;
+    }
+}
 
 async function verificarSessao() {
     try {
@@ -75,6 +118,13 @@ function atualizarVisibilidadeAcesso() {
     document.getElementById('sessionLabel').textContent = administrador
         ? 'Administrador'
         : `Vendedor: ${usuarioAtual.nome}`;
+    if (!administrador) {
+        const url = new URL(window.location.href);
+        url.search = '';
+        url.searchParams.set('v', usuarioAtual.codigo_ref);
+        url.hash = '';
+        document.getElementById('sellerPublicLink').value = url.toString();
+    }
     document.querySelectorAll('.admin-only').forEach((elemento) => {
         elemento.hidden = !administrador;
     });
@@ -498,6 +548,30 @@ function renderizarVendedores() {
     });
 }
 
+function renderizarLojaPublica() {
+    const container = document.getElementById('publicTicketsContainer');
+    const lista = bilhetes[vendedorLojaPublica.id] || [];
+    container.replaceChildren();
+
+    if (!lista.length) {
+        container.textContent = 'Não há bilhetes cadastrados para este vendedor.';
+        return;
+    }
+
+    lista.forEach((bilhete) => {
+        const botao = document.createElement('button');
+        botao.type = 'button';
+        botao.className = 'public-ticket';
+        botao.textContent = String(bilhete.numero).padStart(3, '0');
+        botao.disabled = bilhete.status !== 'disponivel';
+        botao.setAttribute('aria-label', `Bilhete ${bilhete.numero}: ${bilhete.status === 'disponivel' ? 'disponível' : 'indisponível'}`);
+        if (bilhete.status === 'disponivel') {
+            botao.addEventListener('click', () => abrirModalCompra(bilhete, vendedorLojaPublica));
+        }
+        container.appendChild(botao);
+    });
+}
+
 function obterClasseBilhete(bilhete) {
     if (bilhete.status === 'pago') return 'vendido';
     if (bilhete.status === 'reservado') return 'reservado';
@@ -523,14 +597,15 @@ function abrirModalPagamento(bilhete, vendedor) {
     bilhetePagamentoAtual = bilhete.id;
 
     const chavePix = normalizarChavePix(configuracaoRifa.chave_pix);
-    const codigoPix = gerarCodigoPix(chavePix, CONFIG.VALOR_BILHETE, `RIFA${bilhete.numero}`);
+    const codigoPix = gerarCodigoPix(chavePix, configuracaoRifa.valor_bilhete, `RIFA${bilhete.numero}`);
     const areaQrCode = document.getElementById('qrcodeImg');
     const campoPix = document.getElementById('pixKey');
 
     areaQrCode.innerHTML = '';
     campoPix.value = codigoPix;
     document.getElementById('pixRecipient').textContent = chavePix;
-    document.getElementById('pixAmount').textContent = `R$ ${CONFIG.VALOR_BILHETE.toFixed(2).replace('.', ',')}`;
+    document.getElementById('pixAmount').textContent = `R$ ${Number(configuracaoRifa.valor_bilhete).toFixed(2).replace('.', ',')}`;
+    document.getElementById('btnConfirmarPagamento').hidden = modoPublico;
 
     if (typeof QRCode === 'function') {
         new QRCode(areaQrCode, {
@@ -589,6 +664,16 @@ function configurarEventos() {
             vendedores = [];
             bilhetes = {};
             atualizarVisibilidadeAcesso();
+        }
+    });
+
+    document.getElementById('btnCopySellerLink')?.addEventListener('click', async () => {
+        const link = document.getElementById('sellerPublicLink').value;
+        try {
+            await navigator.clipboard.writeText(link);
+            mostrarToast('Link copiado. Envie para seus compradores.');
+        } catch (error) {
+            mostrarToast('Não foi possível copiar automaticamente. Selecione e copie o link.');
         }
     });
 
@@ -750,11 +835,19 @@ function configurarEventos() {
             }
 
             try {
-                await enviarApi('reservar', {
+                const dadosReserva = {
                     bilhete_id: bilhete.id,
                     nome,
                     telefone
-                });
+                };
+                if (modoPublico) {
+                    await enviarApiPublica('public-reservar', {
+                        ...dadosReserva,
+                        codigo_ref: vendedorLojaPublica.codigo_ref
+                    });
+                } else {
+                    await enviarApi('reservar', dadosReserva);
+                }
             } catch (error) {
                 mostrarToast(error.message || 'Não foi possível reservar o bilhete.');
                 return;
@@ -767,6 +860,7 @@ function configurarEventos() {
 
             const modalCompra = document.getElementById('modalCompra');
             if (modalCompra) modalCompra.classList.remove('active');
+            if (modoPublico) renderizarLojaPublica();
             abrirModalPagamento(bilhete, vendedor);
             mostrarToast('Pagamento via Pix solicitado.');
         });
@@ -828,9 +922,32 @@ async function enviarApi(action, dados, headersExtras = {}) {
     return resultado;
 }
 
+async function enviarApiPublica(action, dados) {
+    if (!RIFA_API_URL || !CONFIG.SUPABASE_ANON_KEY) {
+        throw new Error('A compra online está temporariamente indisponível.');
+    }
+
+    const response = await fetch(`${RIFA_API_URL}?action=${encodeURIComponent(action)}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            apikey: CONFIG.SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify(dados)
+    });
+    const resultado = await response.json();
+
+    if (!response.ok || !resultado.success) {
+        throw new Error(resultado.message || 'Não foi possível concluir a solicitação.');
+    }
+
+    return resultado;
+}
+
 function gerarCodigoPix(chavePix, valor, identificador) {
-    const campo = (id, conteudo) => `${id}${String(new TextEncoder().encode(String(conteudo)).length).padStart(2, '0')}${conteudo}`;
-    const nomeRecebedor = CONFIG.NOME_RIFA.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '').toUpperCase().slice(0, 25);
+    const bytesUtf8 = (texto) => new TextEncoder().encode(String(texto));
+    const campo = (id, conteudo) => `${id}${String(bytesUtf8(conteudo).length).padStart(2, '0')}${conteudo}`;
+    const nomeRecebedor = configuracaoRifa.nome_rifa.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '').toUpperCase().slice(0, 25);
     const cidade = CONFIG.PIX_CITY.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '').toUpperCase().slice(0, 15);
     const contaPix = campo('00', 'BR.GOV.BCB.PIX') + campo('01', String(chavePix).trim());
     const dadosAdicionais = campo('05', String(identificador).slice(0, 25));
@@ -851,10 +968,45 @@ function gerarCodigoPix(chavePix, valor, identificador) {
     return payload + calcularCrc16(payload);
 }
 
-function normalizarChavePix(chavePix) {     const chave = String(chavePix).trim();     if (/^\d{10,11}$/.test(chave)) return `+55${chave}`;     if (/^55\d{10,11}$/.test(chave)) return `+${chave}`;     return chave; }  function calcularCrc16(texto) {
-    let crc = 0xFFFF;
+function normalizarChavePix(chavePix) {
+    const chave = String(chavePix).trim();
+    const digitos = chave.replace(/\D/g, '');
+    const cpfFormatado = /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(chave);
+    const cnpjFormatado = /^\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}$/.test(chave);
 
-    for (const byte of new TextEncoder().encode(texto)) {
+    if (cpfFormatado || cnpjFormatado) return digitos;
+    if (/^\d{14}$/.test(chave)) return chave;
+    if (/^\d{11}$/.test(chave) && cpfValido(digitos)) return chave;
+
+    const chaveSemSeparadoresTelefone = chave.replace(/[()\s.-]/g, '');
+    if (/^\+?55\d{10,11}$/.test(chaveSemSeparadoresTelefone)) {
+        return chaveSemSeparadoresTelefone.startsWith('+')
+            ? chaveSemSeparadoresTelefone
+            : `+${chaveSemSeparadoresTelefone}`;
+    }
+    if (/^\d{10,11}$/.test(digitos)) return `+55${digitos}`;
+    return chave;
+}
+
+function cpfValido(cpf) {
+    if (!/^\d{11}$/.test(cpf) || /^(\d)\1{10}$/.test(cpf)) return false;
+
+    const calcularDigito = (tamanho) => {
+        const soma = cpf.slice(0, tamanho)
+            .split('')
+            .reduce((total, digito, indice) => total + Number(digito) * (tamanho + 1 - indice), 0);
+        const resto = (soma * 10) % 11;
+        return resto === 10 ? 0 : resto;
+    };
+
+    return calcularDigito(9) === Number(cpf[9]) && calcularDigito(10) === Number(cpf[10]);
+}
+
+function calcularCrc16(texto) {
+    let crc = 0xFFFF;
+    const bytes = new TextEncoder().encode(texto);
+
+    for (const byte of bytes) {
         crc ^= byte << 8;
         for (let bit = 0; bit < 8; bit += 1) {
             crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) : (crc << 1);
