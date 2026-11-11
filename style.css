@@ -190,7 +190,7 @@ body {
     text-align: center;
 }
 
-.subtitle {
+.subtitle { white-space: pre-line;
     text-align: center;
     color: var(--gray-600);
     font-size: 0.9rem;
@@ -608,7 +608,7 @@ ado { border-top-color: var(--warning); }
     font-size: 0.85rem;
 }
 
-.ticket-prize {
+#publicRaffleDetails { white-space: pre-line; } .ticket-prize { white-space: pre-line;
     color: var(--gray-800);
     font-size: 0.68rem;
     font-weight: 600;
@@ -837,7 +837,7 @@ ado { border-top-color: var(--warning); }
     color: var(--gray-800);
 }
 
-.form-group input {
+.form-group input, .form-group textarea {
     width: 100%;
     padding: 12px 14px;
     border: 2px solid var(--gray-200);
@@ -847,7 +847,7 @@ ado { border-top-color: var(--warning); }
     transition: border-color 0.2s;
 }
 
-.form-group input:focus {
+.form-group textarea { resize: vertical; } .form-group input:focus, .form-group textarea:focus {
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
