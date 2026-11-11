@@ -124,7 +124,8 @@ async function getPublicSellerData(reference: unknown) {
   if (!seller) raise('Este link de vendedor não está ativo.', 404);
 
   const { data: tickets, error: ticketsError } = await service.from('rifa_bilhetes')
-    .select('id, numero, tipo, status').eq('vendedor_id', seller.id).order('numero');
+    .select('id, numero, tipo, status').eq('vendedor_id', seller.id)
+    .eq('tipo', 'online').order('numero');
   if (ticketsError) raise('Não foi possível carregar os bilhetes.', 500);
 
   const ticketIds = (tickets || []).map((ticket) => ticket.id);
@@ -170,7 +171,8 @@ async function reservePublicTicket(body: Record<string, unknown>) {
   if (!seller) raise('Este link de vendedor não está ativo.', 404);
 
   const { data: ticket, error: ticketError } = await service.from('rifa_bilhetes')
-    .select('id').eq('id', ticketId).eq('vendedor_id', seller.id).eq('status', 'disponivel').maybeSingle();
+    .select('id').eq('id', ticketId).eq('vendedor_id', seller.id)
+    .eq('tipo', 'online').eq('status', 'disponivel').maybeSingle();
   if (ticketError) raise('Não foi possível verificar o bilhete.', 500);
   if (!ticket) raise('Este bilhete não está disponível.', 409);
 
@@ -294,7 +296,7 @@ async function saveConfiguration(profile: Profile, body: Record<string, unknown>
   const names = body.nomes_vendedores;
   const passwords = body.senhas_vendedores;
 
-  if (!name || name.length > 120 || prize.length > 200 || !pixKey || pixKey.length > 255
+  if (!name || name.length > 120 || prize.length > 2000 || !pixKey || pixKey.length > 255
     || !Number.isFinite(price) || price <= 0 || price > 1000000
     || !Number.isInteger(prizeCount) || prizeCount < 1 || prizeCount > 1000
     || !Number.isInteger(sellerCount) || sellerCount < 1 || sellerCount > 100
